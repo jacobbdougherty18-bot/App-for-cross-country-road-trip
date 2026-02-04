@@ -2,8 +2,37 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛣️ Road Trip Command Center</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Road Trip Command Center</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="Road Trip">
+    <meta name="description" content="Plan your epic cross-country road trip adventure">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Road Trip">
+
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png">
+
+    <!-- iOS Splash Screens -->
+    <meta name="apple-mobile-web-app-orientations" content="portrait">
+
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
@@ -32,6 +61,21 @@
             min-height: 100vh;
             color: white;
             overflow-x: hidden;
+            /* iOS Safe Area Support */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+
+        /* PWA Standalone Mode Styles */
+        @media (display-mode: standalone) {
+            body {
+                padding-top: env(safe-area-inset-top);
+            }
+            header {
+                padding-top: calc(20px + env(safe-area-inset-top));
+            }
         }
 
         /* Animated Background */
@@ -2000,6 +2044,75 @@
 
         // Expose functions globally
         window.removeWaypoint = removeWaypoint;
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+
+        // iOS Install Prompt
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        }
+
+        function isInStandaloneMode() {
+            return window.matchMedia('(display-mode: standalone)').matches ||
+                   window.navigator.standalone === true;
+        }
+
+        // Show iOS install prompt if not already installed
+        if (isIOS() && !isInStandaloneMode()) {
+            // Check if user has dismissed the prompt before
+            const dismissed = localStorage.getItem('iosInstallDismissed');
+            const lastDismissed = dismissed ? new Date(dismissed) : null;
+            const daysSinceDismissed = lastDismissed ?
+                (new Date() - lastDismissed) / (1000 * 60 * 60 * 24) : Infinity;
+
+            if (daysSinceDismissed > 7) {
+                setTimeout(() => {
+                    showIOSInstallPrompt();
+                }, 3000);
+            }
+        }
+
+        function showIOSInstallPrompt() {
+            const prompt = document.createElement('div');
+            prompt.id = 'iosInstallPrompt';
+            prompt.innerHTML = `
+                <div style="position: fixed; bottom: 20px; left: 20px; right: 20px; background: linear-gradient(135deg, #1e1b4b, #0f0d24); border: 1px solid rgba(99, 102, 241, 0.5); border-radius: 20px; padding: 20px; z-index: 10000; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+                    <button onclick="dismissIOSPrompt()" style="position: absolute; top: 10px; right: 15px; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                    <h3 style="margin-bottom: 10px; color: white; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5rem;">📱</span> Install Road Trip App
+                    </h3>
+                    <p style="color: #e0e7ff; font-size: 0.9rem; margin-bottom: 15px;">
+                        Add this app to your home screen for the best experience!
+                    </p>
+                    <div style="background: rgba(99, 102, 241, 0.2); padding: 15px; border-radius: 12px; font-size: 0.85rem; color: white;">
+                        <p style="margin-bottom: 8px;">1. Tap the <strong>Share</strong> button <span style="display: inline-block; width: 20px; height: 20px; background: #007AFF; border-radius: 5px; text-align: center; line-height: 20px;">↑</span></p>
+                        <p>2. Scroll down and tap <strong>"Add to Home Screen"</strong></p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(prompt);
+        }
+
+        function dismissIOSPrompt() {
+            const prompt = document.getElementById('iosInstallPrompt');
+            if (prompt) {
+                prompt.remove();
+                localStorage.setItem('iosInstallDismissed', new Date().toISOString());
+            }
+        }
+
+        window.dismissIOSPrompt = dismissIOSPrompt;
     </script>
 </body>
 </html>

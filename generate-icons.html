@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate App Icons</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #1e1b4b;
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        h1 { margin-bottom: 20px; }
+        .icon-preview {
+            display: inline-block;
+            margin: 10px;
+            text-align: center;
+        }
+        canvas {
+            border-radius: 20%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        button {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin: 20px 10px;
+        }
+        button:hover { transform: scale(1.05); }
+        .instructions {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 30px auto;
+            max-width: 600px;
+            text-align: left;
+        }
+        .instructions h3 { margin-bottom: 10px; }
+        .instructions ol { padding-left: 20px; }
+        .instructions li { margin: 8px 0; }
+        code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Road Trip App Icon Generator</h1>
+    <p>Click the button below to generate and download all required icon sizes</p>
+
+    <div id="previews"></div>
+
+    <button onclick="generateAllIcons()">Generate & Download All Icons</button>
+    <button onclick="generateBase64()">Generate Base64 for HTML</button>
+
+    <div class="instructions">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Click "Generate & Download All Icons" to download all icon sizes</li>
+            <li>Move the downloaded PNG files to the <code>icons/</code> folder</li>
+            <li>Your app will now have proper icons on all devices!</li>
+        </ol>
+    </div>
+
+    <div id="base64output" style="display: none; margin-top: 20px;">
+        <h3>Base64 Apple Touch Icon:</h3>
+        <textarea id="base64text" style="width: 100%; height: 200px; background: #0f0d24; color: #10b981; border: 1px solid #6366f1; border-radius: 10px; padding: 10px; font-family: monospace;"></textarea>
+    </div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 180, 192, 384, 512];
+
+        function drawIcon(ctx, size) {
+            const scale = size / 512;
+
+            // Background gradient
+            const bgGrad = ctx.createLinearGradient(0, 0, size, size);
+            bgGrad.addColorStop(0, '#6366f1');
+            bgGrad.addColorStop(1, '#4f46e5');
+
+            // Draw rounded rect background
+            const radius = size * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(radius, 0);
+            ctx.lineTo(size - radius, 0);
+            ctx.quadraticCurveTo(size, 0, size, radius);
+            ctx.lineTo(size, size - radius);
+            ctx.quadraticCurveTo(size, size, size - radius, size);
+            ctx.lineTo(radius, size);
+            ctx.quadraticCurveTo(0, size, 0, size - radius);
+            ctx.lineTo(0, radius);
+            ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.closePath();
+            ctx.fillStyle = bgGrad;
+            ctx.fill();
+
+            // Sun
+            const sunGrad = ctx.createRadialGradient(
+                380 * scale, 120 * scale, 0,
+                380 * scale, 120 * scale, 60 * scale
+            );
+            sunGrad.addColorStop(0, '#fbbf24');
+            sunGrad.addColorStop(1, '#f97316');
+            ctx.beginPath();
+            ctx.arc(380 * scale, 120 * scale, 60 * scale, 0, Math.PI * 2);
+            ctx.fillStyle = sunGrad;
+            ctx.fill();
+
+            // Mountains
+            ctx.globalAlpha = 0.6;
+            ctx.fillStyle = '#818cf8';
+            ctx.beginPath();
+            ctx.moveTo(50 * scale, 350 * scale);
+            ctx.lineTo(150 * scale, 200 * scale);
+            ctx.lineTo(250 * scale, 350 * scale);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.globalAlpha = 0.8;
+            ctx.fillStyle = '#a5b4fc';
+            ctx.beginPath();
+            ctx.moveTo(150 * scale, 350 * scale);
+            ctx.lineTo(280 * scale, 180 * scale);
+            ctx.lineTo(410 * scale, 350 * scale);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.globalAlpha = 0.7;
+            ctx.fillStyle = '#c7d2fe';
+            ctx.beginPath();
+            ctx.moveTo(300 * scale, 350 * scale);
+            ctx.lineTo(400 * scale, 220 * scale);
+            ctx.lineTo(500 * scale, 350 * scale);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.globalAlpha = 1;
+
+            // Road
+            const roadGrad = ctx.createLinearGradient(180 * scale, 0, 332 * scale, 0);
+            roadGrad.addColorStop(0, '#374151');
+            roadGrad.addColorStop(1, '#1f2937');
+            ctx.fillStyle = roadGrad;
+            ctx.beginPath();
+            ctx.moveTo(180 * scale, 512 * scale);
+            ctx.lineTo(256 * scale, 280 * scale);
+            ctx.lineTo(332 * scale, 512 * scale);
+            ctx.closePath();
+            ctx.fill();
+
+            // Road lines
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 6 * scale;
+            ctx.lineCap = 'round';
+
+            const linePositions = [300, 360, 420, 480];
+            linePositions.forEach(y => {
+                ctx.beginPath();
+                ctx.moveTo(256 * scale, y * scale);
+                ctx.lineTo(256 * scale, (y + 40) * scale);
+                ctx.stroke();
+            });
+
+            // Car
+            const carX = 220 * scale;
+            const carY = 380 * scale;
+
+            // Car body
+            ctx.fillStyle = '#ef4444';
+            roundRect(ctx, carX, carY + 20 * scale, 72 * scale, 30 * scale, 5 * scale);
+            roundRect(ctx, carX + 10 * scale, carY + 5 * scale, 52 * scale, 20 * scale, 8 * scale);
+
+            // Windows
+            ctx.fillStyle = '#bfdbfe';
+            roundRect(ctx, carX + 15 * scale, carY + 8 * scale, 18 * scale, 14 * scale, 3 * scale);
+            roundRect(ctx, carX + 38 * scale, carY + 8 * scale, 18 * scale, 14 * scale, 3 * scale);
+
+            // Wheels
+            ctx.fillStyle = '#1f2937';
+            ctx.beginPath();
+            ctx.arc(carX + 15 * scale, carY + 50 * scale, 10 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(carX + 57 * scale, carY + 50 * scale, 10 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#6b7280';
+            ctx.beginPath();
+            ctx.arc(carX + 15 * scale, carY + 50 * scale, 5 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(carX + 57 * scale, carY + 50 * scale, 5 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Location pin
+            const pinX = 100 * scale;
+            const pinY = 100 * scale;
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.moveTo(pinX + 25 * scale, pinY);
+            ctx.bezierCurveTo(
+                pinX + 11.2 * scale, pinY,
+                pinX, pinY + 11.2 * scale,
+                pinX, pinY + 25 * scale
+            );
+            ctx.bezierCurveTo(
+                pinX, pinY + 43.75 * scale,
+                pinX + 25 * scale, pinY + 65 * scale,
+                pinX + 25 * scale, pinY + 65 * scale
+            );
+            ctx.bezierCurveTo(
+                pinX + 25 * scale, pinY + 65 * scale,
+                pinX + 50 * scale, pinY + 43.75 * scale,
+                pinX + 50 * scale, pinY + 25 * scale
+            );
+            ctx.bezierCurveTo(
+                pinX + 50 * scale, pinY + 11.2 * scale,
+                pinX + 38.8 * scale, pinY,
+                pinX + 25 * scale, pinY
+            );
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(pinX + 25 * scale, pinY + 23 * scale, 10 * scale, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function generateAllIcons() {
+            sizes.forEach(size => {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                drawIcon(ctx, size);
+
+                // Download
+                const link = document.createElement('a');
+                link.download = `icon-${size}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        function generateBase64() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 180;
+            canvas.height = 180;
+            const ctx = canvas.getContext('2d');
+            drawIcon(ctx, 180);
+
+            const base64 = canvas.toDataURL('image/png');
+            document.getElementById('base64output').style.display = 'block';
+            document.getElementById('base64text').value = base64;
+        }
+
+        // Show previews on load
+        window.onload = function() {
+            const container = document.getElementById('previews');
+            [72, 152, 192].forEach(size => {
+                const div = document.createElement('div');
+                div.className = 'icon-preview';
+
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                drawIcon(ctx, size);
+
+                div.appendChild(canvas);
+                div.innerHTML += `<br><small>${size}x${size}</small>`;
+                container.appendChild(div);
+            });
+        };
+    </script>
+</body>
+</html>
