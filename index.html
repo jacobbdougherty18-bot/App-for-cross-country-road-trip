@@ -1,0 +1,2005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛣️ Road Trip Command Center</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #f97316;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --dark: #1e1b4b;
+            --darker: #0f0d24;
+            --light: #e0e7ff;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 50%, #1a1a2e 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .shooting-star {
+            position: absolute;
+            width: 100px;
+            height: 2px;
+            background: linear-gradient(90deg, white, transparent);
+            animation: shoot 3s infinite;
+            opacity: 0;
+        }
+
+        @keyframes shoot {
+            0% { transform: translateX(-100px) translateY(0); opacity: 0; }
+            10% { opacity: 1; }
+            100% { transform: translateX(calc(100vw + 100px)) translateY(300px); opacity: 0; }
+        }
+
+        /* Header */
+        header {
+            position: relative;
+            z-index: 10;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo i {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 30px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--light);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Main Container */
+        .main-container {
+            position: relative;
+            z-index: 10;
+            display: grid;
+            grid-template-columns: 380px 1fr 350px;
+            gap: 20px;
+            padding: 20px;
+            height: calc(100vh - 100px);
+        }
+
+        /* Glass Card */
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .card-header i {
+            font-size: 1.3rem;
+            color: var(--primary);
+        }
+
+        .card-header h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Left Panel - Route Planner */
+        .route-planner {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .location-input-group {
+            position: relative;
+        }
+
+        .location-input {
+            width: 100%;
+            padding: 15px 15px 15px 45px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: white;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .location-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .location-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary);
+        }
+
+        .waypoints-container {
+            max-height: 200px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .waypoint-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .waypoint-item .waypoint-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        .waypoint-item .waypoint-name {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        .waypoint-item .remove-waypoint {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.2s;
+        }
+
+        .waypoint-item .remove-waypoint:hover {
+            transform: scale(1.2);
+        }
+
+        .add-waypoint-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .add-waypoint-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        /* Vehicle Settings */
+        .vehicle-settings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .vehicle-input {
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .vehicle-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Center Panel - Map */
+        .map-container {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            border-radius: 20px;
+        }
+
+        .map-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .map-btn {
+            padding: 12px 20px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            color: white;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .map-btn:hover {
+            background: var(--primary);
+            transform: translateY(-3px);
+        }
+
+        .map-btn.active {
+            background: var(--primary);
+        }
+
+        /* Right Panel */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        /* Weather Widget */
+        .weather-widget {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .weather-current {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(249, 115, 22, 0.3));
+            border-radius: 15px;
+        }
+
+        .weather-icon {
+            font-size: 3rem;
+        }
+
+        .weather-temp {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .weather-desc {
+            font-size: 0.9rem;
+            color: var(--light);
+        }
+
+        .weather-forecast {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .forecast-day {
+            flex: 0 0 70px;
+            text-align: center;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .forecast-day .day {
+            font-size: 0.75rem;
+            color: var(--light);
+            margin-bottom: 5px;
+        }
+
+        .forecast-day .temp {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Attractions */
+        .attractions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .attraction-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .attraction-item:hover {
+            background: rgba(99, 102, 241, 0.3);
+            transform: translateX(5px);
+        }
+
+        .attraction-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--secondary), var(--danger));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .attraction-info h4 {
+            font-size: 0.95rem;
+            margin-bottom: 3px;
+        }
+
+        .attraction-info p {
+            font-size: 0.75rem;
+            color: var(--light);
+        }
+
+        .attraction-distance {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: var(--accent);
+        }
+
+        /* Budget Tracker */
+        .budget-overview {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .budget-item {
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .budget-item i {
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+        }
+
+        .budget-item .amount {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .budget-item .label {
+            font-size: 0.7rem;
+            color: var(--light);
+            text-transform: uppercase;
+        }
+
+        .budget-item.gas i { color: var(--secondary); }
+        .budget-item.food i { color: var(--accent); }
+        .budget-item.lodging i { color: var(--primary); }
+        .budget-item.total i { color: var(--danger); }
+
+        /* Progress Bar */
+        .trip-progress {
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        /* Photo Journal */
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .photo-item {
+            aspect-ratio: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .photo-item:hover {
+            transform: scale(1.05);
+        }
+
+        .photo-item.add-photo {
+            border: 2px dashed var(--glass-border);
+        }
+
+        .photo-item.add-photo i {
+            font-size: 1.5rem;
+            color: var(--light);
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Emergency Panel */
+        .emergency-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--danger), #b91c1c);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .emergency-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+        }
+
+        .emergency-btn i {
+            font-size: 1.2rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Generate Route Button */
+        .generate-btn {
+            padding: 18px;
+            background: linear-gradient(135deg, var(--accent), #059669);
+            border: none;
+            border-radius: 15px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            margin-top: auto;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(16, 185, 129, 0.4);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--dark);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 1.3rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Route Info Overlay */
+        .route-info-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .route-info-overlay.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .route-info-overlay h3 {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .route-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .route-stat:last-child {
+            border-bottom: none;
+        }
+
+        /* Gas Stations */
+        .gas-stations-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .gas-station-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .gas-station-item i {
+            color: var(--secondary);
+        }
+
+        .gas-price {
+            margin-left: auto;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 3px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 400px auto;
+            }
+
+            .route-planner, .right-panel {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 15px;
+            }
+        }
+
+        /* Loading Animation */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--darker);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-car {
+            font-size: 4rem;
+            animation: drive 1s infinite;
+        }
+
+        @keyframes drive {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .loading-road {
+            width: 200px;
+            height: 4px;
+            background: var(--glass-border);
+            border-radius: 2px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            width: 0%;
+            animation: loading 2s ease-out forwards;
+        }
+
+        @keyframes loading {
+            to { width: 100%; }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            color: var(--light);
+        }
+
+        /* Playlist Widget */
+        .playlist-widget {
+            margin-top: 15px;
+        }
+
+        .current-song {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: linear-gradient(135deg, rgba(30, 215, 96, 0.3), rgba(99, 102, 241, 0.3));
+            border-radius: 12px;
+        }
+
+        .album-art {
+            width: 50px;
+            height: 50px;
+            background: var(--glass);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .song-info {
+            flex: 1;
+        }
+
+        .song-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .song-artist {
+            font-size: 0.8rem;
+            color: var(--light);
+        }
+
+        .play-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .play-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.2);
+        }
+
+        /* Tabs */
+        .panel-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .panel-tab {
+            flex: 1;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border: none;
+            border-radius: 8px;
+            color: var(--light);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .panel-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .panel-tab:hover:not(.active) {
+            background: rgba(99, 102, 241, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-car">🚗</div>
+        <div class="loading-road">
+            <div class="loading-progress"></div>
+        </div>
+        <div class="loading-text">Starting your adventure...</div>
+    </div>
+
+    <!-- Animated Background -->
+    <div class="bg-animation" id="bgAnimation"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <i class="fas fa-route"></i>
+            Road Trip Command Center
+        </div>
+        <div class="header-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="totalMiles">0</div>
+                <div class="stat-label">Miles</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalHours">0h</div>
+                <div class="stat-label">Drive Time</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalStops">0</div>
+                <div class="stat-label">Stops</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="fuelStops">0</div>
+                <div class="stat-label">Fuel Stops</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Panel - Route Planner -->
+        <div class="glass-card route-planner">
+            <div class="card-header">
+                <i class="fas fa-map-marked-alt"></i>
+                <h2>Route Planner</h2>
+            </div>
+
+            <div class="location-input-group">
+                <i class="fas fa-circle input-icon" style="color: var(--accent);"></i>
+                <input type="text" class="location-input" id="startLocation" placeholder="Starting location...">
+            </div>
+
+            <div class="waypoints-container" id="waypointsContainer"></div>
+
+            <button class="add-waypoint-btn" id="addWaypointBtn">
+                <i class="fas fa-plus"></i> Add Waypoint
+            </button>
+
+            <div class="location-input-group">
+                <i class="fas fa-map-pin input-icon" style="color: var(--danger);"></i>
+                <input type="text" class="location-input" id="endLocation" placeholder="Destination...">
+            </div>
+
+            <div class="card-header" style="margin-top: 10px;">
+                <i class="fas fa-car"></i>
+                <h2>Vehicle Settings</h2>
+            </div>
+
+            <div class="vehicle-settings">
+                <input type="number" class="vehicle-input" id="mpg" placeholder="MPG" value="28">
+                <input type="number" class="vehicle-input" id="tankSize" placeholder="Tank (gal)" value="15">
+                <input type="number" class="vehicle-input" id="gasPrice" placeholder="Gas $/gal" value="3.50">
+                <select class="vehicle-input" id="vehicleType">
+                    <option value="sedan">Sedan</option>
+                    <option value="suv">SUV</option>
+                    <option value="truck">Truck</option>
+                    <option value="ev">Electric</option>
+                </select>
+            </div>
+
+            <div class="card-header" style="margin-top: 10px;">
+                <i class="fas fa-cog"></i>
+                <h2>Route Preferences</h2>
+            </div>
+
+            <div class="vehicle-settings">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                    <input type="checkbox" id="avoidTolls"> Avoid Tolls
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                    <input type="checkbox" id="scenicRoute"> Scenic Route
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                    <input type="checkbox" id="avoidHighways"> Avoid Highways
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                    <input type="checkbox" id="nightDriving"> Night Driving OK
+                </label>
+            </div>
+
+            <button class="generate-btn" id="generateRoute">
+                <i class="fas fa-magic"></i> Generate Epic Route
+            </button>
+        </div>
+
+        <!-- Center Panel - Map -->
+        <div class="glass-card map-container">
+            <div id="map"></div>
+
+            <div class="route-info-overlay" id="routeInfoOverlay">
+                <h3><i class="fas fa-info-circle"></i> Route Summary</h3>
+                <div class="route-stat">
+                    <span>Total Distance</span>
+                    <span id="routeDistance">--</span>
+                </div>
+                <div class="route-stat">
+                    <span>Estimated Time</span>
+                    <span id="routeTime">--</span>
+                </div>
+                <div class="route-stat">
+                    <span>Fuel Needed</span>
+                    <span id="routeFuel">--</span>
+                </div>
+                <div class="route-stat">
+                    <span>Est. Fuel Cost</span>
+                    <span id="routeFuelCost">--</span>
+                </div>
+            </div>
+
+            <div class="map-controls">
+                <button class="map-btn active" id="mapStandard">
+                    <i class="fas fa-map"></i> Standard
+                </button>
+                <button class="map-btn" id="mapSatellite">
+                    <i class="fas fa-satellite"></i> Satellite
+                </button>
+                <button class="map-btn" id="mapTerrain">
+                    <i class="fas fa-mountain"></i> Terrain
+                </button>
+                <button class="map-btn" id="showTraffic">
+                    <i class="fas fa-traffic-light"></i> Traffic
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <!-- Weather Widget -->
+            <div class="glass-card">
+                <div class="card-header">
+                    <i class="fas fa-cloud-sun"></i>
+                    <h2>Weather Along Route</h2>
+                </div>
+                <div class="weather-widget">
+                    <div class="weather-current">
+                        <div class="weather-icon">☀️</div>
+                        <div>
+                            <div class="weather-temp" id="currentTemp">72°F</div>
+                            <div class="weather-desc" id="weatherDesc">Perfect driving conditions</div>
+                        </div>
+                    </div>
+                    <div class="weather-forecast" id="weatherForecast">
+                        <div class="forecast-day">
+                            <div class="day">Mon</div>
+                            <div>🌤️</div>
+                            <div class="temp">75°F</div>
+                        </div>
+                        <div class="forecast-day">
+                            <div class="day">Tue</div>
+                            <div>☀️</div>
+                            <div class="temp">78°F</div>
+                        </div>
+                        <div class="forecast-day">
+                            <div class="day">Wed</div>
+                            <div>⛅</div>
+                            <div class="temp">72°F</div>
+                        </div>
+                        <div class="forecast-day">
+                            <div class="day">Thu</div>
+                            <div>🌧️</div>
+                            <div class="temp">65°F</div>
+                        </div>
+                        <div class="forecast-day">
+                            <div class="day">Fri</div>
+                            <div>☀️</div>
+                            <div class="temp">70°F</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attractions & Gas Stations Tabs -->
+            <div class="glass-card">
+                <div class="panel-tabs">
+                    <button class="panel-tab active" data-tab="attractions">🏛️ Attractions</button>
+                    <button class="panel-tab" data-tab="gas">⛽ Gas Stops</button>
+                    <button class="panel-tab" data-tab="food">🍔 Food</button>
+                </div>
+
+                <div class="tab-content active" id="attractions-tab">
+                    <div class="attractions-list" id="attractionsList">
+                        <div class="attraction-item">
+                            <div class="attraction-icon">🏜️</div>
+                            <div class="attraction-info">
+                                <h4>Grand Canyon</h4>
+                                <p>National Park • Must See</p>
+                            </div>
+                            <div class="attraction-distance">+2.5h</div>
+                        </div>
+                        <div class="attraction-item">
+                            <div class="attraction-icon">🎰</div>
+                            <div class="attraction-info">
+                                <h4>Las Vegas Strip</h4>
+                                <p>Entertainment • Iconic</p>
+                            </div>
+                            <div class="attraction-distance">On Route</div>
+                        </div>
+                        <div class="attraction-item">
+                            <div class="attraction-icon">🌉</div>
+                            <div class="attraction-info">
+                                <h4>Golden Gate Bridge</h4>
+                                <p>Landmark • Photo Op</p>
+                            </div>
+                            <div class="attraction-distance">+1h</div>
+                        </div>
+                        <div class="attraction-item">
+                            <div class="attraction-icon">🦎</div>
+                            <div class="attraction-info">
+                                <h4>Cadillac Ranch</h4>
+                                <p>Roadside • Quirky</p>
+                            </div>
+                            <div class="attraction-distance">On Route</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="gas-tab">
+                    <div class="gas-stations-list" id="gasStationsList">
+                        <div class="gas-station-item">
+                            <i class="fas fa-gas-pump"></i>
+                            <div>
+                                <div>Shell - Mile 245</div>
+                                <small style="color: var(--light);">Recommended stop</small>
+                            </div>
+                            <div class="gas-price">$3.29</div>
+                        </div>
+                        <div class="gas-station-item">
+                            <i class="fas fa-gas-pump"></i>
+                            <div>
+                                <div>Chevron - Mile 512</div>
+                                <small style="color: var(--light);">Good reviews</small>
+                            </div>
+                            <div class="gas-price">$3.45</div>
+                        </div>
+                        <div class="gas-station-item">
+                            <i class="fas fa-gas-pump"></i>
+                            <div>
+                                <div>Costco - Mile 780</div>
+                                <small style="color: var(--light);">Best price</small>
+                            </div>
+                            <div class="gas-price">$3.15</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="food-tab">
+                    <div class="attractions-list">
+                        <div class="attraction-item">
+                            <div class="attraction-icon">🍕</div>
+                            <div class="attraction-info">
+                                <h4>Joe's Pizza</h4>
+                                <p>⭐ 4.8 • Italian</p>
+                            </div>
+                            <div class="attraction-distance">Mile 123</div>
+                        </div>
+                        <div class="attraction-item">
+                            <div class="attraction-icon">🌮</div>
+                            <div class="attraction-info">
+                                <h4>Authentic Tacos</h4>
+                                <p>⭐ 4.9 • Mexican</p>
+                            </div>
+                            <div class="attraction-distance">Mile 456</div>
+                        </div>
+                        <div class="attraction-item">
+                            <div class="attraction-icon">🍔</div>
+                            <div class="attraction-info">
+                                <h4>Route 66 Diner</h4>
+                                <p>⭐ 4.7 • American</p>
+                            </div>
+                            <div class="attraction-distance">Mile 678</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Tracker -->
+            <div class="glass-card">
+                <div class="card-header">
+                    <i class="fas fa-wallet"></i>
+                    <h2>Trip Budget</h2>
+                </div>
+                <div class="budget-overview">
+                    <div class="budget-item gas">
+                        <i class="fas fa-gas-pump"></i>
+                        <div class="amount" id="gasTotal">$0</div>
+                        <div class="label">Gas</div>
+                    </div>
+                    <div class="budget-item food">
+                        <i class="fas fa-utensils"></i>
+                        <div class="amount" id="foodTotal">$0</div>
+                        <div class="label">Food</div>
+                    </div>
+                    <div class="budget-item lodging">
+                        <i class="fas fa-bed"></i>
+                        <div class="amount" id="lodgingTotal">$0</div>
+                        <div class="label">Lodging</div>
+                    </div>
+                    <div class="budget-item total">
+                        <i class="fas fa-calculator"></i>
+                        <div class="amount" id="tripTotal">$0</div>
+                        <div class="label">Total</div>
+                    </div>
+                </div>
+                <div class="trip-progress">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                        <span>Trip Progress</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Photo Journal -->
+            <div class="glass-card">
+                <div class="card-header">
+                    <i class="fas fa-camera"></i>
+                    <h2>Trip Memories</h2>
+                </div>
+                <div class="photo-grid" id="photoGrid">
+                    <div class="photo-item add-photo" id="addPhotoBtn">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Services -->
+            <div class="glass-card">
+                <button class="emergency-btn" id="emergencyBtn">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Find Nearby Emergency Services
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Waypoint Modal -->
+    <div class="modal-overlay" id="waypointModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Waypoint</h3>
+                <button class="modal-close" id="closeWaypointModal">&times;</button>
+            </div>
+            <div class="location-input-group">
+                <i class="fas fa-map-marker-alt input-icon"></i>
+                <input type="text" class="location-input" id="waypointInput" placeholder="Enter city, landmark, or address...">
+            </div>
+            <div style="margin-top: 15px;">
+                <h4 style="margin-bottom: 10px; font-size: 0.9rem; color: var(--light);">Popular Suggestions</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;" id="waypointSuggestions">
+                    <button class="waypoint-suggestion" style="padding: 8px 15px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px; color: white; cursor: pointer;">🏜️ Grand Canyon</button>
+                    <button class="waypoint-suggestion" style="padding: 8px 15px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px; color: white; cursor: pointer;">🎰 Las Vegas</button>
+                    <button class="waypoint-suggestion" style="padding: 8px 15px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px; color: white; cursor: pointer;">🌊 Santa Monica</button>
+                    <button class="waypoint-suggestion" style="padding: 8px 15px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px; color: white; cursor: pointer;">⛰️ Yellowstone</button>
+                </div>
+            </div>
+            <button class="generate-btn" style="margin-top: 20px;" id="confirmWaypoint">
+                <i class="fas fa-check"></i> Add to Route
+            </button>
+        </div>
+    </div>
+
+    <!-- Emergency Modal -->
+    <div class="modal-overlay" id="emergencyModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> Emergency Services</h3>
+                <button class="modal-close" id="closeEmergencyModal">&times;</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <a href="tel:911" style="display: flex; align-items: center; gap: 15px; padding: 15px; background: rgba(239, 68, 68, 0.2); border-radius: 10px; color: white; text-decoration: none;">
+                    <i class="fas fa-phone" style="font-size: 1.5rem; color: var(--danger);"></i>
+                    <div>
+                        <div style="font-weight: 600;">Call 911</div>
+                        <div style="font-size: 0.85rem; color: var(--light);">Life-threatening emergencies</div>
+                    </div>
+                </a>
+                <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: rgba(99, 102, 241, 0.2); border-radius: 10px;">
+                    <i class="fas fa-hospital" style="font-size: 1.5rem; color: var(--primary);"></i>
+                    <div>
+                        <div style="font-weight: 600;">Nearest Hospital</div>
+                        <div style="font-size: 0.85rem; color: var(--light);" id="nearestHospital">Locating...</div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: rgba(249, 115, 22, 0.2); border-radius: 10px;">
+                    <i class="fas fa-car-crash" style="font-size: 1.5rem; color: var(--secondary);"></i>
+                    <div>
+                        <div style="font-weight: 600;">Roadside Assistance</div>
+                        <div style="font-size: 0.85rem; color: var(--light);">AAA: 1-800-222-4357</div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: rgba(16, 185, 129, 0.2); border-radius: 10px;">
+                    <i class="fas fa-wrench" style="font-size: 1.5rem; color: var(--accent);"></i>
+                    <div>
+                        <div style="font-weight: 600;">Nearest Mechanic</div>
+                        <div style="font-size: 0.85rem; color: var(--light);" id="nearestMechanic">Locating...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photo Modal -->
+    <div class="modal-overlay" id="photoModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-camera"></i> Add Trip Memory</h3>
+                <button class="modal-close" id="closePhotoModal">&times;</button>
+            </div>
+            <div style="text-align: center; padding: 30px; border: 2px dashed var(--glass-border); border-radius: 15px; cursor: pointer;" id="photoDropZone">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary); margin-bottom: 15px;"></i>
+                <p>Drop your photo here or click to upload</p>
+                <input type="file" id="photoInput" accept="image/*" style="display: none;">
+            </div>
+            <input type="text" class="location-input" style="margin-top: 15px;" placeholder="Add a caption..." id="photoCaption">
+            <button class="generate-btn" style="margin-top: 15px;" id="savePhoto">
+                <i class="fas fa-save"></i> Save Memory
+            </button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            // Hide loading screen after animation
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }, 2500);
+
+            // Create animated background
+            createStars();
+            createShootingStars();
+
+            // Initialize map
+            initMap();
+
+            // Setup event listeners
+            setupEventListeners();
+
+            // Load saved data
+            loadSavedData();
+        });
+
+        // Stars background
+        function createStars() {
+            const bg = document.getElementById('bgAnimation');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.width = Math.random() * 3 + 1 + 'px';
+                star.style.height = star.style.width;
+                star.style.animationDelay = Math.random() * 3 + 's';
+                bg.appendChild(star);
+            }
+        }
+
+        function createShootingStars() {
+            const bg = document.getElementById('bgAnimation');
+            setInterval(() => {
+                const shootingStar = document.createElement('div');
+                shootingStar.className = 'shooting-star';
+                shootingStar.style.left = Math.random() * 50 + '%';
+                shootingStar.style.top = Math.random() * 50 + '%';
+                bg.appendChild(shootingStar);
+                setTimeout(() => shootingStar.remove(), 3000);
+            }, 5000);
+        }
+
+        // Map initialization
+        let map;
+        let routeLayer;
+        let markers = [];
+
+        function initMap() {
+            map = L.map('map').setView([39.8283, -98.5795], 4);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Custom marker icons
+            window.startIcon = L.divIcon({
+                html: '<div style="background: linear-gradient(135deg, #10b981, #059669); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.5);"><i class="fas fa-flag"></i></div>',
+                className: 'custom-marker',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            window.endIcon = L.divIcon({
+                html: '<div style="background: linear-gradient(135deg, #ef4444, #dc2626); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.5);"><i class="fas fa-map-pin"></i></div>',
+                className: 'custom-marker',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            window.waypointIcon = L.divIcon({
+                html: '<div style="background: linear-gradient(135deg, #f97316, #ea580c); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.5);"><i class="fas fa-star"></i></div>',
+                className: 'custom-marker',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            window.gasIcon = L.divIcon({
+                html: '<div style="background: linear-gradient(135deg, #eab308, #ca8a04); width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; box-shadow: 0 4px 15px rgba(234, 179, 8, 0.5);"><i class="fas fa-gas-pump"></i></div>',
+                className: 'custom-marker',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+
+            window.attractionIcon = L.divIcon({
+                html: '<div style="background: linear-gradient(135deg, #6366f1, #4f46e5); width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.5);"><i class="fas fa-camera"></i></div>',
+                className: 'custom-marker',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Add waypoint button
+            document.getElementById('addWaypointBtn').addEventListener('click', () => {
+                document.getElementById('waypointModal').classList.add('active');
+            });
+
+            // Close modals
+            document.getElementById('closeWaypointModal').addEventListener('click', () => {
+                document.getElementById('waypointModal').classList.remove('active');
+            });
+
+            document.getElementById('closeEmergencyModal').addEventListener('click', () => {
+                document.getElementById('emergencyModal').classList.remove('active');
+            });
+
+            document.getElementById('closePhotoModal').addEventListener('click', () => {
+                document.getElementById('photoModal').classList.remove('active');
+            });
+
+            // Waypoint suggestions
+            document.querySelectorAll('.waypoint-suggestion').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.getElementById('waypointInput').value = btn.textContent.trim();
+                });
+            });
+
+            // Confirm waypoint
+            document.getElementById('confirmWaypoint').addEventListener('click', addWaypoint);
+
+            // Generate route
+            document.getElementById('generateRoute').addEventListener('click', generateRoute);
+
+            // Emergency button
+            document.getElementById('emergencyBtn').addEventListener('click', () => {
+                document.getElementById('emergencyModal').classList.add('active');
+                findEmergencyServices();
+            });
+
+            // Photo upload
+            document.getElementById('addPhotoBtn').addEventListener('click', () => {
+                document.getElementById('photoModal').classList.add('active');
+            });
+
+            document.getElementById('photoDropZone').addEventListener('click', () => {
+                document.getElementById('photoInput').click();
+            });
+
+            document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
+            document.getElementById('savePhoto').addEventListener('click', savePhotoMemory);
+
+            // Tab switching
+            document.querySelectorAll('.panel-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+                });
+            });
+
+            // Map style buttons
+            document.getElementById('mapStandard').addEventListener('click', () => setMapStyle('standard'));
+            document.getElementById('mapSatellite').addEventListener('click', () => setMapStyle('satellite'));
+            document.getElementById('mapTerrain').addEventListener('click', () => setMapStyle('terrain'));
+        }
+
+        // Waypoints management
+        let waypoints = [];
+
+        function addWaypoint() {
+            const input = document.getElementById('waypointInput');
+            const name = input.value.trim();
+            if (!name) return;
+
+            waypoints.push({ name, id: Date.now() });
+            renderWaypoints();
+            input.value = '';
+            document.getElementById('waypointModal').classList.remove('active');
+            document.getElementById('totalStops').textContent = waypoints.length;
+            saveData();
+        }
+
+        function renderWaypoints() {
+            const container = document.getElementById('waypointsContainer');
+            container.innerHTML = waypoints.map((wp, index) => `
+                <div class="waypoint-item">
+                    <div class="waypoint-icon">${index + 1}</div>
+                    <span class="waypoint-name">${wp.name}</span>
+                    <button class="remove-waypoint" onclick="removeWaypoint(${wp.id})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeWaypoint(id) {
+            waypoints = waypoints.filter(wp => wp.id !== id);
+            renderWaypoints();
+            document.getElementById('totalStops').textContent = waypoints.length;
+            saveData();
+        }
+
+        // Famous US locations for demo
+        const famousLocations = {
+            'new york': { lat: 40.7128, lng: -74.0060, name: 'New York City' },
+            'los angeles': { lat: 34.0522, lng: -118.2437, name: 'Los Angeles' },
+            'chicago': { lat: 41.8781, lng: -87.6298, name: 'Chicago' },
+            'houston': { lat: 29.7604, lng: -95.3698, name: 'Houston' },
+            'phoenix': { lat: 33.4484, lng: -112.0740, name: 'Phoenix' },
+            'san francisco': { lat: 37.7749, lng: -122.4194, name: 'San Francisco' },
+            'seattle': { lat: 47.6062, lng: -122.3321, name: 'Seattle' },
+            'miami': { lat: 25.7617, lng: -80.1918, name: 'Miami' },
+            'denver': { lat: 39.7392, lng: -104.9903, name: 'Denver' },
+            'las vegas': { lat: 36.1699, lng: -115.1398, name: 'Las Vegas' },
+            'grand canyon': { lat: 36.0544, lng: -112.1401, name: 'Grand Canyon' },
+            'yellowstone': { lat: 44.4280, lng: -110.5885, name: 'Yellowstone' },
+            'santa monica': { lat: 34.0195, lng: -118.4912, name: 'Santa Monica' },
+            'austin': { lat: 30.2672, lng: -97.7431, name: 'Austin' },
+            'nashville': { lat: 36.1627, lng: -86.7816, name: 'Nashville' },
+            'new orleans': { lat: 29.9511, lng: -90.0715, name: 'New Orleans' },
+            'boston': { lat: 42.3601, lng: -71.0589, name: 'Boston' },
+            'washington dc': { lat: 38.9072, lng: -77.0369, name: 'Washington DC' },
+            'atlanta': { lat: 33.7490, lng: -84.3880, name: 'Atlanta' },
+            'dallas': { lat: 32.7767, lng: -96.7970, name: 'Dallas' },
+            'san diego': { lat: 32.7157, lng: -117.1611, name: 'San Diego' },
+            'portland': { lat: 45.5155, lng: -122.6789, name: 'Portland' },
+            'salt lake city': { lat: 40.7608, lng: -111.8910, name: 'Salt Lake City' },
+            'memphis': { lat: 35.1495, lng: -90.0490, name: 'Memphis' },
+            'albuquerque': { lat: 35.0844, lng: -106.6504, name: 'Albuquerque' }
+        };
+
+        function geocodeLocation(query) {
+            const normalized = query.toLowerCase().replace(/[^\w\s]/g, '');
+            for (const [key, value] of Object.entries(famousLocations)) {
+                if (normalized.includes(key) || key.includes(normalized)) {
+                    return value;
+                }
+            }
+            // Return random US location if not found
+            const lat = 25 + Math.random() * 24;
+            const lng = -125 + Math.random() * 55;
+            return { lat, lng, name: query };
+        }
+
+        // Route generation
+        async function generateRoute() {
+            const startInput = document.getElementById('startLocation').value.trim();
+            const endInput = document.getElementById('endLocation').value.trim();
+
+            if (!startInput || !endInput) {
+                alert('Please enter both start and end locations!');
+                return;
+            }
+
+            const btn = document.getElementById('generateRoute');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculating...';
+            btn.disabled = true;
+
+            // Clear existing markers and route
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            if (routeLayer) map.removeLayer(routeLayer);
+
+            // Geocode locations
+            const startLoc = geocodeLocation(startInput);
+            const endLoc = geocodeLocation(endInput);
+            const waypointLocs = waypoints.map(wp => geocodeLocation(wp.name));
+
+            // Add markers
+            const startMarker = L.marker([startLoc.lat, startLoc.lng], { icon: window.startIcon })
+                .bindPopup(`<b>Start:</b> ${startLoc.name || startInput}`)
+                .addTo(map);
+            markers.push(startMarker);
+
+            waypointLocs.forEach((loc, i) => {
+                const marker = L.marker([loc.lat, loc.lng], { icon: window.waypointIcon })
+                    .bindPopup(`<b>Stop ${i + 1}:</b> ${loc.name || waypoints[i].name}`)
+                    .addTo(map);
+                markers.push(marker);
+            });
+
+            const endMarker = L.marker([endLoc.lat, endLoc.lng], { icon: window.endIcon })
+                .bindPopup(`<b>Destination:</b> ${endLoc.name || endInput}`)
+                .addTo(map);
+            markers.push(endMarker);
+
+            // Create route points
+            const routePoints = [
+                [startLoc.lat, startLoc.lng],
+                ...waypointLocs.map(loc => [loc.lat, loc.lng]),
+                [endLoc.lat, endLoc.lng]
+            ];
+
+            // Create curved route with intermediate points
+            const curvedRoute = createCurvedRoute(routePoints);
+
+            // Draw route
+            routeLayer = L.polyline(curvedRoute, {
+                color: '#6366f1',
+                weight: 4,
+                opacity: 0.8,
+                smoothFactor: 1
+            }).addTo(map);
+
+            // Fit map to route
+            map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+
+            // Calculate stats
+            const totalMiles = calculateDistance(routePoints);
+            const mpg = parseFloat(document.getElementById('mpg').value) || 28;
+            const tankSize = parseFloat(document.getElementById('tankSize').value) || 15;
+            const gasPrice = parseFloat(document.getElementById('gasPrice').value) || 3.50;
+
+            const gallonsNeeded = totalMiles / mpg;
+            const fuelCost = gallonsNeeded * gasPrice;
+            const fuelStops = Math.ceil(gallonsNeeded / tankSize);
+            const driveTime = totalMiles / 65; // Average 65 mph
+
+            // Update UI
+            document.getElementById('totalMiles').textContent = Math.round(totalMiles).toLocaleString();
+            document.getElementById('totalHours').textContent = formatTime(driveTime);
+            document.getElementById('fuelStops').textContent = fuelStops;
+
+            document.getElementById('routeDistance').textContent = Math.round(totalMiles).toLocaleString() + ' mi';
+            document.getElementById('routeTime').textContent = formatTime(driveTime);
+            document.getElementById('routeFuel').textContent = gallonsNeeded.toFixed(1) + ' gal';
+            document.getElementById('routeFuelCost').textContent = '$' + fuelCost.toFixed(2);
+
+            // Update budget
+            const days = Math.ceil(driveTime / 8);
+            const foodCost = days * 50;
+            const lodgingCost = (days - 1) * 120;
+
+            document.getElementById('gasTotal').textContent = '$' + Math.round(fuelCost);
+            document.getElementById('foodTotal').textContent = '$' + foodCost;
+            document.getElementById('lodgingTotal').textContent = '$' + lodgingCost;
+            document.getElementById('tripTotal').textContent = '$' + Math.round(fuelCost + foodCost + lodgingCost);
+
+            // Show route info overlay
+            document.getElementById('routeInfoOverlay').classList.add('active');
+
+            // Add gas station markers along route
+            addGasStationsToRoute(curvedRoute, fuelStops);
+
+            // Add attraction markers
+            addAttractionsToRoute(curvedRoute);
+
+            // Generate dynamic weather
+            updateWeatherWidget(startLoc, endLoc);
+
+            btn.innerHTML = '<i class="fas fa-magic"></i> Generate Epic Route';
+            btn.disabled = false;
+
+            saveData();
+        }
+
+        function createCurvedRoute(points) {
+            const result = [];
+            for (let i = 0; i < points.length - 1; i++) {
+                const start = points[i];
+                const end = points[i + 1];
+                // Add intermediate points for smoother curve
+                for (let t = 0; t <= 1; t += 0.05) {
+                    const lat = start[0] + (end[0] - start[0]) * t;
+                    const lng = start[1] + (end[1] - start[1]) * t;
+                    // Add slight curve variation
+                    const curve = Math.sin(t * Math.PI) * 0.5;
+                    result.push([lat + curve * 0.1, lng]);
+                }
+            }
+            return result;
+        }
+
+        function calculateDistance(points) {
+            let total = 0;
+            for (let i = 0; i < points.length - 1; i++) {
+                const [lat1, lng1] = points[i];
+                const [lat2, lng2] = points[i + 1];
+                total += haversineDistance(lat1, lng1, lat2, lng2);
+            }
+            return total;
+        }
+
+        function haversineDistance(lat1, lng1, lat2, lng2) {
+            const R = 3959; // Earth's radius in miles
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function formatTime(hours) {
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            return `${h}h ${m}m`;
+        }
+
+        function addGasStationsToRoute(route, count) {
+            const gasStations = ['Shell', 'Chevron', 'Exxon', 'BP', 'Mobil', 'Costco', '76', 'Circle K'];
+            const interval = Math.floor(route.length / (count + 1));
+
+            const gasListHTML = [];
+
+            for (let i = 1; i <= count; i++) {
+                const point = route[interval * i];
+                if (point) {
+                    const station = gasStations[Math.floor(Math.random() * gasStations.length)];
+                    const price = (3.00 + Math.random() * 0.80).toFixed(2);
+                    const mile = Math.round((i / (count + 1)) * parseFloat(document.getElementById('totalMiles').textContent.replace(',', '')));
+
+                    const marker = L.marker(point, { icon: window.gasIcon })
+                        .bindPopup(`<b>${station}</b><br>$${price}/gal`)
+                        .addTo(map);
+                    markers.push(marker);
+
+                    gasListHTML.push(`
+                        <div class="gas-station-item">
+                            <i class="fas fa-gas-pump"></i>
+                            <div>
+                                <div>${station} - Mile ${mile}</div>
+                                <small style="color: var(--light);">Recommended stop</small>
+                            </div>
+                            <div class="gas-price">$${price}</div>
+                        </div>
+                    `);
+                }
+            }
+
+            document.getElementById('gasStationsList').innerHTML = gasListHTML.join('');
+        }
+
+        function addAttractionsToRoute(route) {
+            const attractions = [
+                { name: 'Scenic Overlook', icon: '🏔️', type: 'Nature' },
+                { name: 'Historic Site', icon: '🏛️', type: 'History' },
+                { name: 'Local Diner', icon: '🍽️', type: 'Food' },
+                { name: 'State Park', icon: '🌲', type: 'Nature' },
+                { name: 'Photo Spot', icon: '📸', type: 'Scenic' },
+                { name: 'Roadside Art', icon: '🎨', type: 'Quirky' }
+            ];
+
+            const count = Math.min(5, Math.floor(route.length / 20));
+            const attractionListHTML = [];
+
+            for (let i = 0; i < count; i++) {
+                const index = Math.floor((i + 0.5) * route.length / count);
+                const point = route[index];
+                if (point) {
+                    const attraction = attractions[Math.floor(Math.random() * attractions.length)];
+                    const detour = Math.random() > 0.5 ? `+${(Math.random() * 2).toFixed(1)}h` : 'On Route';
+
+                    const marker = L.marker(point, { icon: window.attractionIcon })
+                        .bindPopup(`<b>${attraction.icon} ${attraction.name}</b><br>${attraction.type}`)
+                        .addTo(map);
+                    markers.push(marker);
+
+                    attractionListHTML.push(`
+                        <div class="attraction-item" onclick="map.setView([${point[0]}, ${point[1]}], 10)">
+                            <div class="attraction-icon">${attraction.icon}</div>
+                            <div class="attraction-info">
+                                <h4>${attraction.name}</h4>
+                                <p>${attraction.type} • Worth seeing</p>
+                            </div>
+                            <div class="attraction-distance">${detour}</div>
+                        </div>
+                    `);
+                }
+            }
+
+            document.getElementById('attractionsList').innerHTML = attractionListHTML.join('');
+        }
+
+        function updateWeatherWidget(startLoc, endLoc) {
+            const conditions = [
+                { icon: '☀️', desc: 'Sunny', temp: 75 },
+                { icon: '⛅', desc: 'Partly Cloudy', temp: 70 },
+                { icon: '🌤️', desc: 'Mostly Sunny', temp: 72 },
+                { icon: '🌥️', desc: 'Cloudy', temp: 65 },
+                { icon: '🌧️', desc: 'Light Rain', temp: 60 }
+            ];
+
+            const current = conditions[Math.floor(Math.random() * 3)];
+            document.getElementById('currentTemp').textContent = current.temp + '°F';
+            document.querySelector('.weather-icon').textContent = current.icon;
+            document.getElementById('weatherDesc').textContent = current.desc + ' - Great for driving!';
+
+            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const today = new Date().getDay();
+            let forecastHTML = '';
+
+            for (let i = 0; i < 5; i++) {
+                const cond = conditions[Math.floor(Math.random() * conditions.length)];
+                const dayIndex = (today + i) % 7;
+                forecastHTML += `
+                    <div class="forecast-day">
+                        <div class="day">${days[dayIndex]}</div>
+                        <div>${cond.icon}</div>
+                        <div class="temp">${cond.temp + Math.floor(Math.random() * 10 - 5)}°F</div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('weatherForecast').innerHTML = forecastHTML;
+        }
+
+        // Map style switching
+        function setMapStyle(style) {
+            document.querySelectorAll('.map-btn').forEach(btn => btn.classList.remove('active'));
+
+            let tileUrl;
+            switch(style) {
+                case 'satellite':
+                    tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+                    document.getElementById('mapSatellite').classList.add('active');
+                    break;
+                case 'terrain':
+                    tileUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+                    document.getElementById('mapTerrain').classList.add('active');
+                    break;
+                default:
+                    tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+                    document.getElementById('mapStandard').classList.add('active');
+            }
+
+            // Remove existing tile layer and add new one
+            map.eachLayer(layer => {
+                if (layer instanceof L.TileLayer) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            L.tileLayer(tileUrl, {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        // Emergency services
+        function findEmergencyServices() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        document.getElementById('nearestHospital').textContent = 'Regional Medical Center - 3.2 miles';
+                        document.getElementById('nearestMechanic').textContent = "Joe's Auto Repair - 1.5 miles";
+                    },
+                    error => {
+                        document.getElementById('nearestHospital').textContent = 'Enable location for nearest';
+                        document.getElementById('nearestMechanic').textContent = 'Enable location for nearest';
+                    }
+                );
+            }
+        }
+
+        // Photo handling
+        let photos = [];
+        let pendingPhoto = null;
+
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    pendingPhoto = e.target.result;
+                    document.getElementById('photoDropZone').innerHTML = `
+                        <img src="${pendingPhoto}" style="max-width: 100%; max-height: 200px; border-radius: 10px;">
+                    `;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function savePhotoMemory() {
+            if (pendingPhoto) {
+                const caption = document.getElementById('photoCaption').value || 'Trip memory';
+                photos.push({ src: pendingPhoto, caption, date: new Date().toLocaleDateString() });
+                renderPhotos();
+                pendingPhoto = null;
+                document.getElementById('photoModal').classList.remove('active');
+                document.getElementById('photoDropZone').innerHTML = `
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary); margin-bottom: 15px;"></i>
+                    <p>Drop your photo here or click to upload</p>
+                `;
+                document.getElementById('photoCaption').value = '';
+                saveData();
+            }
+        }
+
+        function renderPhotos() {
+            const grid = document.getElementById('photoGrid');
+            grid.innerHTML = photos.map((photo, i) => `
+                <div class="photo-item" title="${photo.caption}">
+                    <img src="${photo.src}" alt="${photo.caption}">
+                </div>
+            `).join('') + `
+                <div class="photo-item add-photo" id="addPhotoBtn" onclick="document.getElementById('photoModal').classList.add('active')">
+                    <i class="fas fa-plus"></i>
+                </div>
+            `;
+        }
+
+        // Local storage
+        function saveData() {
+            const data = {
+                waypoints,
+                photos,
+                startLocation: document.getElementById('startLocation').value,
+                endLocation: document.getElementById('endLocation').value,
+                mpg: document.getElementById('mpg').value,
+                tankSize: document.getElementById('tankSize').value,
+                gasPrice: document.getElementById('gasPrice').value
+            };
+            localStorage.setItem('roadTripData', JSON.stringify(data));
+        }
+
+        function loadSavedData() {
+            const saved = localStorage.getItem('roadTripData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                waypoints = data.waypoints || [];
+                photos = data.photos || [];
+
+                if (data.startLocation) document.getElementById('startLocation').value = data.startLocation;
+                if (data.endLocation) document.getElementById('endLocation').value = data.endLocation;
+                if (data.mpg) document.getElementById('mpg').value = data.mpg;
+                if (data.tankSize) document.getElementById('tankSize').value = data.tankSize;
+                if (data.gasPrice) document.getElementById('gasPrice').value = data.gasPrice;
+
+                renderWaypoints();
+                renderPhotos();
+                document.getElementById('totalStops').textContent = waypoints.length;
+            }
+        }
+
+        // Trip progress simulation
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressPercent').textContent = percent + '%';
+        }
+
+        // Expose functions globally
+        window.removeWaypoint = removeWaypoint;
+    </script>
+</body>
+</html>
